@@ -7,21 +7,59 @@ import AdminDashboard from "./pages/AdminDashboard";
 import BookingForm from "./pages/BookingForm";
 import PaymentPage from "./pages/PaymentPage";
 import NotFound from "./pages/NotFound";
-
+import { AuthProvider } from "./components/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/client-dashboard" element={<ClientDashboard />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/book" element={<BookingForm />} />
-        <Route path="/payment/:bookingId" element={<PaymentPage />} />  {/* <-- here */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          
+          {/* Client Protected Routes */}
+          <Route 
+            path="/client-dashboard" 
+            element={
+              <ProtectedRoute allowedRole="client">
+                <ClientDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/book" 
+            element={
+              <ProtectedRoute allowedRole="client">
+                <BookingForm />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/payment/:bookingId" 
+            element={
+              <ProtectedRoute allowedRole="client">
+                <PaymentPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Admin Protected Routes */}
+          <Route 
+            path="/admin-dashboard" 
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Fallback */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
