@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "../Firebase";
 import Navbar from "../components/Navbar";
 
 function PaymentPage() {
@@ -20,10 +18,15 @@ function PaymentPage() {
     async function loadBooking() {
       try {
         setFetchingBooking(true);
-        const docRef = doc(db, "bookings", bookingId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setBooking({ id: docSnap.id, ...docSnap.data() });
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/bookings/${bookingId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBooking(data);
         } else {
           alert("Booking record not found.");
           navigate("/client-dashboard");
@@ -69,10 +72,23 @@ function PaymentPage() {
     try {
       // Simulate gateway delay
       await new Promise((r) => setTimeout(r, 2000));
-      const bookingRef = doc(db, "bookings", bookingId);
-      await updateDoc(bookingRef, {
-        paymentStatus: "paid",
+      
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          paymentStatus: 'paid'
+        })
       });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Payment update failed');
+      }
 
       alert("Secure payment process successfully completed!");
       navigate("/client-dashboard");

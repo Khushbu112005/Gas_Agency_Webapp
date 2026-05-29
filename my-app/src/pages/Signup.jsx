@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../Firebase';
-import { setDoc, doc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../components/AuthContext';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -10,19 +8,25 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, password);
-      // Save details to Firestore with role = 'client'
-      await setDoc(doc(db, 'users', res.user.uid), {
-        name,
-        email,
-        role: 'client',
-        createdAt: new Date()
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      loginUser(data.token, data.user);
       alert('Account registration successful!');
       navigate('/client-dashboard');
     } catch (err) {

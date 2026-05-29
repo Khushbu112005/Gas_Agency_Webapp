@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../Firebase';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 
 export default function NoticeBoard() {
   const [notices, setNotices] = useState([]);
@@ -9,9 +7,12 @@ export default function NoticeBoard() {
   useEffect(() => {
     async function fetchNotices() {
       try {
-        const q = query(collection(db, 'notices'), orderBy('date', 'desc'));
-        const snap = await getDocs(q);
-        setNotices(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const res = await fetch('/api/notices');
+        if (!res.ok) {
+          throw new Error('Failed to fetch notices');
+        }
+        const data = await res.json();
+        setNotices(data);
       } catch (err) {
         console.error("Error fetching notices:", err);
       } finally {

@@ -1,7 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../Firebase';
 
 const AuthContext = createContext();
 
@@ -11,34 +9,49 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true);
-      if (currentUser) {
-        setUser(currentUser);
+    async function verifySession() {
+      const token = localStorage.getItem('token');
+      if (token) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            setRole(userDoc.data().role || 'client');
+          const res = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setUser(data.user);
+            setRole(data.user.role);
           } else {
-            // Default role if not explicitly set
-            setRole('client');
+            // Token is invalid/expired
+            localStorage.removeItem('token');
+            setUser(null);
+            setRole(null);
           }
         } catch (err) {
-          console.error("Error fetching user role:", err);
-          setRole('client');
+          console.error("Session verification failed:", err);
+          // If server is unreachable, we don't immediately clear token to prevent logging out
         }
-      } else {
-        setUser(null);
-        setRole(null);
       }
       setLoading(false);
-    });
-
-    return unsubscribe;
+    }
+    verifySession();
   }, []);
 
+  const loginUser = (token, userData) => {
+    localStorage.setItem('token', token);
+    setUser(userData);
+    setRole(userData.role);
+  };
+
+  const logoutUser = () => {
+    localStorage.removeItem('token');
+    setUser(null);
+    setRole(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, loginUser, logoutUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,21 +1,15 @@
 import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../Firebase";
 import { useAuth } from "./AuthContext";
 
 export default function Navbar() {
-  const { user, role } = useAuth();
+  const { user, role, logoutUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate("/");
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
+  const handleLogout = () => {
+    logoutUser();
+    navigate("/");
   };
 
   if (!user) return null;

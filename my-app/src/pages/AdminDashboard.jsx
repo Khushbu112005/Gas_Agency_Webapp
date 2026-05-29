@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../Firebase';
-import { collection, getDocs, updateDoc, doc, addDoc } from 'firebase/firestore';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../components/AuthContext';
 
@@ -19,25 +17,35 @@ export default function AdminDashboard() {
     async function loadData() {
       try {
         setLoadingData(true);
+        const token = localStorage.getItem('token');
+
         // Fetch users map
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const uMap = {};
-        usersSnap.docs.forEach(d => {
-          uMap[d.id] = d.data();
+        const usersRes = await fetch('/api/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
-        setUsersMap(uMap);
+        if (usersRes.ok) {
+          const uMap = await usersRes.json();
+          setUsersMap(uMap);
+        }
 
         // Fetch bookings
-        const bookingsSnap = await getDocs(collection(db, 'bookings'));
-        const data = bookingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        
-        // Sort bookings (newest first)
-        data.sort((a, b) => {
-          const dateA = a.createdAt?.seconds ? a.createdAt.seconds : new Date(a.date).getTime() / 1000;
-          const dateB = b.createdAt?.seconds ? b.createdAt.seconds : new Date(b.date).getTime() / 1000;
-          return dateB - dateA;
+        const bookingsRes = await fetch('/api/bookings', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
-        setBookings(data);
+        if (bookingsRes.ok) {
+          const data = await bookingsRes.json();
+          // Sort bookings (newest first)
+          data.sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : new Date(a.date).getTime();
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : new Date(b.date).getTime();
+            return dateB - dateA;
+          });
+          setBookings(data);
+        }
       } catch (err) {
         console.error("Error loading admin data:", err);
       } finally {
@@ -49,7 +57,19 @@ export default function AdminDashboard() {
 
   const handleApprove = async (id) => {
     try {
-      await updateDoc(doc(db, 'bookings', id), { status: 'approved' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/bookings/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'approved' })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to approve booking');
+      }
       setBookings(b => b.map(x => x.id === id ? { ...x, status: 'approved' } : x));
     } catch (err) {
       alert("Failed to approve booking: " + err.message);
@@ -58,7 +78,19 @@ export default function AdminDashboard() {
 
   const handleReject = async (id) => {
     try {
-      await updateDoc(doc(db, 'bookings', id), { status: 'rejected' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/bookings/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to reject booking');
+      }
       setBookings(b => b.map(x => x.id === id ? { ...x, status: 'rejected' } : x));
     } catch (err) {
       alert("Failed to reject booking: " + err.message);
@@ -69,11 +101,19 @@ export default function AdminDashboard() {
     e.preventDefault();
     setNoticePosting(true);
     try {
-      await addDoc(collection(db, 'notices'), { 
-        title, 
-        content, 
-        date: new Date() 
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/notices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title, content })
       });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to post notice');
+      }
       alert('Notice broadcasted to all users successfully!');
       setTitle(''); 
       setContent('');

@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { auth, db } from '../Firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import NoticeBoard from '../components/NoticeBoard';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext';
 import Navbar from '../components/Navbar';
 
@@ -10,25 +8,28 @@ export default function ClientDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     async function loadBookings() {
       if (!user) return;
       try {
         setLoadingBookings(true);
-        const q = query(
-          collection(db, 'bookings'),
-          where('userId', '==', user.uid)
-        );
-        const snap = await getDocs(q);
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/bookings', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) {
+          throw new Error('Failed to fetch bookings');
+        }
+        const data = await res.json();
         
-        // Sort manually by createdAt/date if firebase orderby requires composite index
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Sort manually (newest first)
         data.sort((a, b) => {
-          const dateA = a.createdAt?.seconds ? a.createdAt.seconds : new Date(a.date).getTime() / 1000;
-          const dateB = b.createdAt?.seconds ? b.createdAt.seconds : new Date(b.date).getTime() / 1000;
-          return dateB - dateA; // descending order (newest first)
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : new Date(a.date).getTime();
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : new Date(b.date).getTime();
+          return dateB - dateA;
         });
         
         setBookings(data);

@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { db, auth } from '../Firebase';
-import { collection, addDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../components/AuthContext';
@@ -16,7 +14,7 @@ export default function BookingForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!auth.currentUser) {
+    if (!user) {
       alert('Please login first.');
       navigate('/');
       return;
@@ -24,18 +22,29 @@ export default function BookingForm() {
     
     setLoading(true);
     try {
-      const docRef = await addDoc(collection(db, 'bookings'), {
-        userId: auth.currentUser.uid,
-        address,
-        cylinderType,
-        date,
-        extra,
-        status: 'pending',
-        paymentStatus: 'unpaid',
-        createdAt: new Date(),
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          address,
+          cylinderType,
+          date,
+          extra
+        })
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to submit booking');
+      }
+
       alert('Booking submitted successfully! Proceeding to pay.');
-      navigate(`/payment/${docRef.id}`);
+      navigate(`/payment/${data.id}`);
     } catch (err) {
       console.error(err);
       alert('Failed to place booking: ' + err.message);

@@ -1,32 +1,33 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../Firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../components/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await signInWithEmailAndPassword(auth, email, password);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
 
-      // Fetch user document from Firestore
-      const udoc = await getDoc(doc(db, 'users', res.user.uid));
+      const data = await res.json();
 
-      if (!udoc.exists()) {
-        alert("User profile record not found in Firestore database.");
-        setLoading(false);
-        return;
+      if (!res.ok) {
+        throw new Error(data.message || 'Authentication failed');
       }
 
-      const data = udoc.data();
-      if (data?.role === 'admin') {
+      loginUser(data.token, data.user);
+
+      if (data.user?.role === 'admin') {
         navigate('/admin-dashboard');
       } else {
         navigate('/client-dashboard');
